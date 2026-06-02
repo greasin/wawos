@@ -66,7 +66,7 @@ jobs:
 
       - name: Pack initramfs
         run: |
-          mkdir -p build/iso/boot/grub build/iso/wawos
+          sudo mkdir -p build/iso/boot/grub build/iso/wawos
           cd build/rootfs
           sudo find . | sudo cpio -H newc -o 2>/dev/null | gzip -9 > ../iso/boot/initrd.img
           echo "initrd size: $(du -sh ../iso/boot/initrd.img | cut -f1)"
