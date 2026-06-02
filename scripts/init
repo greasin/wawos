@@ -1,0 +1,117 @@
+#!/bin/sh
+# WAW OS Init - World At War Operating System
+# This is the entire userspace. There is no other userspace.
+
+# Mount essential filesystems
+mount -t proc none /proc
+mount -t sysfs none /sys
+mount -t devtmpfs none /dev 2>/dev/null || mount -t tmpfs none /dev
+
+# Suppress kernel messages on console
+echo 0 > /proc/sys/kernel/printk 2>/dev/null
+
+# Set up framebuffer console
+setterm --blank 0 --powersave off --powerdown 0 2>/dev/null
+
+# Clear screen
+clear
+
+echo ""
+echo "  WAW OS - World At War Operating System"
+echo "  Powered by Brainfuck(tm) Kernel"
+echo "  Loading..."
+sleep 1
+
+# Try to find and mount the ISO filesystem to get our HTML
+mkdir -p /media/cdrom
+mount -o ro /dev/sr0 /media/cdrom 2>/dev/null || \
+mount -o ro /dev/cdrom /media/cdrom 2>/dev/null || \
+mount -o ro /dev/sda /media/cdrom 2>/dev/null
+
+# Set up a tmpfs web root
+mkdir -p /var/www
+if [ -f /media/cdrom/wawos/index.html ]; then
+    cp /media/cdrom/wawos/index.html /var/www/index.html
+else
+    # Fallback: write inline HTML (minimal version)
+    cat > /var/www/index.html << 'HTMLEOF'
+<!DOCTYPE html><html><head><title>WAW OS</title>
+<style>
+body{background:#1a1200;color:#c49a00;font-family:monospace;display:flex;
+justify-content:center;align-items:center;height:100vh;flex-direction:column;gap:20px;margin:0}
+h1{font-size:36px;letter-spacing:6px}
+p{color:#4a3a00;font-size:13px}
+</style></head>
+<body><h1>WORLD AT WAR OS</h1><p>powered by brainfuck(tm) - no survivors</p>
+<p style="color:#ff4444">ERROR: Full WAW OS failed to load. This is expected.</p>
+</body></html>
+HTMLEOF
+fi
+
+# Start a simple HTTP server using busybox httpd
+mkdir -p /tmp/www
+cp /var/www/index.html /tmp/www/
+cd /tmp/www
+
+# Try to launch a graphical browser
+# First attempt: X11 + chromium/firefox in kiosk mode
+if command -v Xorg >/dev/null 2>&1 || command -v X >/dev/null 2>&1; then
+    export DISPLAY=:0
+    Xorg :0 -nolisten tcp &
+    sleep 2
+
+    # Try various browsers in kiosk/fullscreen mode
+    if command -v chromium-browser >/dev/null 2>&1; then
+        chromium-browser --kiosk --no-sandbox --disable-infobars \
+            --disable-session-crashed-bubble \
+            --app=file:///tmp/www/index.html &
+    elif command -v chromium >/dev/null 2>&1; then
+        chromium --kiosk --no-sandbox --disable-infobars \
+            --app=file:///tmp/www/index.html &
+    elif command -v firefox >/dev/null 2>&1; then
+        firefox --kiosk file:///tmp/www/index.html &
+    elif command -v surf >/dev/null 2>&1; then
+        surf -F file:///tmp/www/index.html &
+    fi
+
+elif command -v links2 >/dev/null 2>&1; then
+    # Framebuffer browser fallback
+    links2 -g -mode 1024x768x16 file:///tmp/www/index.html
+
+else
+    # Pure text fallback - WAW OS terminal edition
+    clear
+    echo ""
+    echo "  ██╗    ██╗ █████╗ ██╗    ██╗     ██████╗ ███████╗"
+    echo "  ██║    ██║██╔══██╗██║    ██║    ██╔═══██╗██╔════╝"
+    echo "  ██║ █╗ ██║███████║██║ █╗ ██║    ██║   ██║███████╗"
+    echo "  ██║███╗██║██╔══██║██║███╗██║    ██║   ██║╚════██║"
+    echo "  ╚███╔███╔╝██║  ██║╚███╔███╔╝    ╚██████╔╝███████║"
+    echo "   ╚══╝╚══╝ ╚═╝  ╚═╝ ╚══╝╚══╝      ╚═════╝ ╚══════╝"
+    echo ""
+    echo "  WORLD AT WAR OS - Powered by Brainfuck(tm)"
+    echo "  ============================================"
+    echo ""
+    echo "  [  OK  ] Crash subsystem: ARMED"
+    echo "  [  OK  ] Stability module: NOT FOUND (expected)"
+    echo "  [  OK  ] Self-destruct: READY"
+    echo ""
+
+    # Interactive crash loop
+    KIA=0
+    while true; do
+        echo -n "  WAW> "
+        read CMD
+        KIA=$((KIA + 1))
+        echo ""
+        echo "  ☠  TOTAL ANNIHILATION"
+        echo "  STOP CODE: 0xNO_SURVIVORS  KIA: $KIA"
+        echo "  You typed '$CMD'. This caused a fatal Brainfuck exception."
+        echo "  All troops lost. Kernel destroyed. Tape head derailed."
+        echo ""
+        sleep 1
+    done
+fi
+
+# Keep init alive
+while true; do sleep 60; done

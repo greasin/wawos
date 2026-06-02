@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WAW OS - World At War</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100vw; height: 100vh;
+  overflow: hidden;
+  background: #1a1200;
+  font-family: monospace;
+  cursor: crosshair;
+  user-select: none;
+}
+#desktop {
+  width: 100vw; height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+#scanlines {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 200;
+}
+#taskbar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 40px;
+  background: #0d0a00;
+  border-top: 1px solid #4a3a00;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 10px;
+  z-index: 10;
+}
+#start-btn {
+  background: #3a2a00;
+  color: #d4a800;
+  border: 1px solid #6a5a00;
+  border-radius: 3px;
+  padding: 5px 12px;
+  font-family: monospace;
+  font-size: 13px;
+  cursor: pointer;
+}
+#start-btn:hover { background: #4a3a00; }
+#clock {
+  margin-left: auto;
+  color: #8a7000;
+  font-size: 12px;
+}
+#wallpaper-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -58%);
+  text-align: center;
+  pointer-events: none;
+}
+#wallpaper-text h1 {
+  font-size: clamp(20px, 4vw, 36px);
+  font-weight: bold;
+  color: #c49a00;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  text-shadow: 0 0 40px rgba(196,154,0,0.3);
+}
+#wallpaper-text .sub {
+  font-size: 11px;
+  color: #4a3a00;
+  margin-top: 6px;
+  letter-spacing: 3px;
+}
+#wallpaper-text .tagline {
+  font-size: 12px;
+  color: #3a2a00;
+  margin-top: 10px;
+}
+#bf-ticker {
+  position: absolute;
+  bottom: 48px;
+  left: 0; right: 0;
+  font-size: 10px;
+  color: #2a2000;
+  white-space: nowrap;
+  padding: 2px 10px;
+  pointer-events: none;
+  font-family: monospace;
+}
+.desktop-icon {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  padding: 10px 8px;
+  border-radius: 4px;
+  width: 80px;
+}
+.desktop-icon:hover { background: rgba(180,140,0,0.15); }
+.icon-img { font-size: 32px; line-height: 1; }
+.icon-label {
+  font-size: 11px;
+  color: #d4a800;
+  text-align: center;
+  text-shadow: 0 1px 6px #000;
+}
+#bsod {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: #140000;
+  z-index: 100;
+  padding: 60px 80px;
+  font-family: monospace;
+  color: #ff4444;
+  flex-direction: column;
+  gap: 14px;
+  border: 2px solid #8a0000;
+}
+#bsod.active { display: flex; }
+#bsod .skull { font-size: 48px; margin-bottom: 8px; }
+#bsod h2 {
+  font-size: clamp(16px, 2.5vw, 22px);
+  font-weight: bold;
+  color: #ff2222;
+  letter-spacing: 3px;
+}
+#bsod .bf-code {
+  font-size: 11px;
+  color: #8a3333;
+  word-break: break-all;
+  line-height: 1.7;
+  max-height: 130px;
+  overflow: hidden;
+  border-left: 2px solid #4a0000;
+  padding-left: 12px;
+}
+#bsod .error-msg {
+  font-size: 14px;
+  line-height: 1.9;
+  color: #ff6666;
+}
+#bsod .stop-line { font-size: 13px; color: #aa3333; }
+#bsod .hint { font-size: 11px; color: #663333; margin-top: 6px; }
+#bsod .reboot-btn {
+  margin-top: 20px;
+  background: #8a0000;
+  color: #ffaaaa;
+  border: 1px solid #ff2222;
+  padding: 8px 20px;
+  font-family: monospace;
+  font-size: 13px;
+  cursor: pointer;
+  align-self: flex-start;
+  border-radius: 3px;
+}
+#bsod .reboot-btn:hover { background: #aa0000; }
+#crash-counter {
+  position: absolute;
+  top: 10px; right: 12px;
+  font-size: 12px;
+  color: #6a5000;
+}
+#mouse-trail {
+  position: absolute;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #ff4400;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 5;
+}
+.notification {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a0a00;
+  border: 1px solid #8a4400;
+  color: #ff8844;
+  font-size: 12px;
+  padding: 7px 16px;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+  z-index: 50;
+}
+.notification.show { opacity: 1; }
+#waw-logo {
+  position: absolute;
+  top: 12px; left: 14px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #6a5000;
+  letter-spacing: 4px;
+  pointer-events: none;
+}
+#boot-screen {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 60px;
+  font-family: monospace;
+  color: #c49a00;
+  gap: 6px;
+}
+#boot-screen p { font-size: 13px; line-height: 1.8; }
+#boot-screen .cursor { display: inline-block; animation: blink 0.8s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+</style>
+</head>
+<body>
+
+<div id="boot-screen">
+  <p>WAW OS v1.0 — World At War Operating System</p>
+  <p>Powered by Brainfuck™ Kernel</p>
+  <p>&nbsp;</p>
+  <p id="boot-line-1" style="display:none">[ OK ] Loading brainfuck interpreter...</p>
+  <p id="boot-line-2" style="display:none">[ OK ] Mounting tape drive at /dev/null...</p>
+  <p id="boot-line-3" style="display:none">[ OK ] Initializing crash subsystem...</p>
+  <p id="boot-line-4" style="display:none">[ OK ] Starting instability daemon...</p>
+  <p id="boot-line-5" style="display:none">[ OK ] Arming self-destruct on all user inputs...</p>
+  <p id="boot-line-6" style="display:none; color:#ff4444">[ !! ] Stability module: NOT FOUND (expected)</p>
+  <p id="boot-line-7" style="display:none">&nbsp;</p>
+  <p id="boot-line-8" style="display:none">Welcome to WAW OS. No survivors. <span class="cursor">_</span></p>
+</div>
+
+<div id="desktop" style="display:none">
+  <div id="scanlines"></div>
+  <div id="waw-logo">W·A·W</div>
+  <div id="wallpaper-text">
+    <h1>World At War OS</h1>
+    <div class="sub">WAW·OS · BUILD 0.0.1·UNSTABLE</div>
+    <div class="tagline">powered by brainfuck™ · no survivors</div>
+  </div>
+  <div id="crash-counter">KIA: <span id="cc">0</span></div>
+
+  <div class="desktop-icon" style="top:70px;left:20px" onclick="crash('Command HQ opened. HQ immediately called for a retreat from RAM.')">
+    <span class="icon-img">🪖</span><span class="icon-label">Command HQ</span>
+  </div>
+  <div class="desktop-icon" style="top:70px;left:110px" onclick="crash('Intel Reports launched. It had no intel. It had no RAM either.')">
+    <span class="icon-img">📡</span><span class="icon-label">Intel</span>
+  </div>
+  <div class="desktop-icon" style="top:190px;left:20px" onclick="crash('Armory opened. Segfault on weapon[0]. All weapons are weapon[0].')">
+    <span class="icon-img">🔫</span><span class="icon-label">Armory</span>
+  </div>
+  <div class="desktop-icon" style="top:190px;left:110px" onclick="crash('Supply Drop deployed. Landed directly on the kernel. Kernel did not survive.')">
+    <span class="icon-img">📦</span><span class="icon-label">Supply Drop</span>
+  </div>
+  <div class="desktop-icon" style="top:310px;left:20px" onclick="crash('Radio operator tuned to frequency. Frequency tuned back. Both crashed.')">
+    <span class="icon-img">📻</span><span class="icon-label">Radio</span>
+  </div>
+  <div class="desktop-icon" style="top:310px;left:110px" onclick="crash('Field Map loaded 0 bytes of terrain data. Troops were deployed into the void.')">
+    <span class="icon-img">🗺️</span><span class="icon-label">Field Map</span>
+  </div>
+
+  <div id="bf-ticker">++++++++++[&gt;+++++++&gt;++++++++++&gt;+++&gt;+&lt;&lt;&lt;&lt;-]&gt;++.&gt;+.+++++++..+++.&gt;++.&lt;&lt;+++++++++++++++.&gt;.+++.------.--------.</div>
+
+  <div id="taskbar">
+    <button id="start-btn" onclick="crash('War Room opened. The war was immediately lost.')">⊞ War Room</button>
+    <span style="color:#4a3a00;font-size:11px">BF_WAWKERNEL·v0.0.1·no_retreat</span>
+    <span id="clock">--:--:--</span>
+  </div>
+
+  <div id="mouse-trail"></div>
+  <div class="notification" id="notif"></div>
+
+  <div id="bsod">
+    <div class="skull">☠</div>
+    <h2>WAW OS — TOTAL ANNIHILATION</h2>
+    <div class="error-msg" id="bsod-msg">A fatal error occurred.</div>
+    <div class="stop-line">STOP CODE: <span id="stop-code">0x00000000</span></div>
+    <div style="font-size:12px;color:#663333;margin-top:4px">Brainfuck stack trace (battlefield edition):</div>
+    <div class="bf-code" id="bf-trace"></div>
+    <div class="hint">No man's land starts at memory cell 0. Everything is cell 0.</div>
+    <button class="reboot-btn" id="reboot-btn">Call Reinforcements (they will also crash)</button>
+  </div>
+</div>
+
+<script>
+const stopCodes = [
+  '0xNO_SURVIVORS','0xFRAGGED_KERNEL','0xAMBUSH_NULL',
+  '0xFRIENDLY_FIRE','0xSUPPLY_DROP_KIA','0xRADIO_SILENCE',
+  '0xMOUSE_MIA','0xCLICK_CASUALTY','0xTAPE_OVERRUN',
+  '0xBF_DESERTION','0xZERO_AMMO','0xMAP_NOT_FOUND'
+];
+const bfSnippets = [
+  '>>[-]<<[->+>+<<]>>[-<<+>>]<<<...',
+  '++++++++++[>+++++++<-]>+++++.',
+  '[->+<]>[->+>+<<]>>[-<<+>>]',
+  '>>>>++++++++[<-------->-]<.',
+  '[->[->+<]>[->+>+<<]>>[-<<+>>]<<<<]',
+  '>,[>,]<[.<]',
+  '++++++++[>++++[>++>+++>+<<<<-]>+>->>+[<]<-]>>.>---.',
+  '[[>+>+<<-]>>[<<+>>-]<<<-]'
+];
+
+let crashCount = 0, moveTimeout = null, notifTimeout = null, mouseWarnings = 0;
+const bsod = document.getElementById('bsod');
+const notif = document.getElementById('notif');
+const trail = document.getElementById('mouse-trail');
+
+function randFrom(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+function showNotif(msg){
+  notif.textContent = msg;
+  notif.classList.add('show');
+  clearTimeout(notifTimeout);
+  notifTimeout = setTimeout(()=>notif.classList.remove('show'), 1800);
+}
+
+function crash(reason){
+  crashCount++;
+  document.getElementById('cc').textContent = crashCount;
+  document.getElementById('bsod-msg').textContent = reason;
+  document.getElementById('stop-code').textContent = randFrom(stopCodes);
+  document.getElementById('bf-trace').textContent = bfSnippets
+    .slice(0, 4+Math.floor(Math.random()*3))
+    .map((s,i)=>`  [sector ${i}] ${s}`).join('\n');
+  bsod.classList.add('active');
+}
+
+document.getElementById('reboot-btn').onclick = function(){
+  bsod.classList.remove('active');
+  setTimeout(()=>crash('Reinforcements arrived. They also ran on Brainfuck. They also crashed.'), 900+Math.random()*1400);
+};
+
+const moveWarnings = [
+  'WARNING: Enemy mouse movement detected.',
+  'Hostile cursor advancing. Preparing countermeasures.',
+  'Mouse flanked the kernel. Kernel is retreating.',
+  'Cursor breached the perimeter. All is lost.'
+];
+
+document.addEventListener('mousemove', function(e){
+  trail.style.left=(e.clientX-4)+'px';
+  trail.style.top=(e.clientY-4)+'px';
+  trail.style.opacity='1';
+  setTimeout(()=>trail.style.opacity='0', 200);
+  clearTimeout(moveTimeout);
+  mouseWarnings=(mouseWarnings+1)%moveWarnings.length;
+  showNotif(moveWarnings[mouseWarnings]);
+  moveTimeout=setTimeout(()=>{
+    crash('Mouse advanced '+(Math.floor(Math.random()*500)+1)+' pixels into enemy territory. Brainfuck pointer arithmetic did not survive.');
+  }, 3000+Math.random()*3000);
+});
+
+document.addEventListener('contextmenu', e=>{
+  e.preventDefault();
+  crash('Right-click fired. Friendly fire incident. Court martial pending. System dead.');
+});
+
+document.addEventListener('dblclick', ()=>{
+  crash('Double-click detected. WAW OS can only process single inputs. It cannot process those either.');
+});
+
+document.addEventListener('keydown', e=>{
+  const msgs = {
+    'Escape': 'Escape key pressed. There is no escape.',
+    'F1': 'Help requested. WAW OS does not help.',
+    'Tab': 'Tab pressed. Focus transferred to /dev/null.',
+    'Enter': 'Enter key detected. Entering what? The void.',
+  };
+  crash(msgs[e.key] || `Key "${e.key}" pressed. The keyboard has been court-martialed.`);
+});
+
+function updateClock(){
+  const now=new Date();
+  const el=document.getElementById('clock');
+  if(el&&!bsod.classList.contains('active')){
+    el.textContent=[now.getHours(),now.getMinutes(),now.getSeconds()]
+      .map(n=>String(n).padStart(2,'0')).join(':');
+    if(Math.random()<0.005) crash('The mission clock ticked. This triggered a time-based paradox in the Brainfuck scheduler. No survivors.');
+  }
+}
+setInterval(updateClock,1000);
+updateClock();
+
+const bfEl=document.getElementById('bf-ticker');
+let bfIdx=0;
+setInterval(()=>{ bfEl.textContent=bfSnippets[bfIdx++%bfSnippets.length]; },2000);
+
+// Boot sequence
+const bootLines = [1,2,3,4,5,6,7,8];
+bootLines.forEach((n,i)=>{
+  setTimeout(()=>{
+    document.getElementById('boot-line-'+n).style.display='block';
+  }, 600 + i*420);
+});
+setTimeout(()=>{
+  document.getElementById('boot-screen').style.display='none';
+  document.getElementById('desktop').style.display='block';
+  showNotif('WAW OS deployed. Already taking casualties.');
+  setTimeout(()=>showNotif('Tip: all actions result in total annihilation.'), 3000);
+}, 600 + bootLines.length*420 + 1200);
+</script>
+</body>
+</html>
