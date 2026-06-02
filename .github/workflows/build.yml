@@ -68,6 +68,21 @@ jobs:
         run: |
           sudo mkdir -p build/iso/boot/grub build/iso/wawos
           sudo chmod -R 777 build/
+
+          # Strip unnecessary stuff to shrink the initramfs
+          sudo rm -rf build/rootfs/usr/share/doc
+          sudo rm -rf build/rootfs/usr/share/man
+          sudo rm -rf build/rootfs/usr/share/locale
+          sudo rm -rf build/rootfs/usr/share/fonts/X11/100dpi
+          sudo rm -rf build/rootfs/usr/share/fonts/X11/75dpi
+          sudo rm -rf build/rootfs/var/cache/apt
+          sudo rm -rf build/rootfs/var/lib/apt/lists
+          sudo rm -rf build/rootfs/usr/share/gtk-doc
+          sudo rm -rf build/rootfs/usr/share/info
+          sudo rm -rf build/rootfs/usr/share/pixmaps
+          sudo rm -rf build/rootfs/usr/lib/python3*
+          sudo rm -rf build/rootfs/usr/share/perl*
+
           cd build/rootfs
           sudo find . | sudo cpio -H newc -o 2>/dev/null | gzip -9 | sudo tee ../iso/boot/initrd.img > /dev/null
           echo "initrd size: $(du -sh ../iso/boot/initrd.img | cut -f1)"
