@@ -33,10 +33,10 @@ jobs:
             --no-check-gpg \
             --variant=minbase \
             --include=linux-image-amd64,busybox-static,xorg,chromium,openbox \
-            --exclude=dconf-service,dconf-gsettings-backend \
             bookworm \
             ./build/rootfs \
-            http://deb.debian.org/debian/
+            http://deb.debian.org/debian/ || true
+          sudo chroot ./build/rootfs dpkg --configure -a --force-confdef --force-confold 2>/dev/null || true
 
       - name: Install WAW OS init
         run: |
