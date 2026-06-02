@@ -28,6 +28,7 @@ jobs:
 
       - name: Build minimal Debian rootfs
         run: |
+          sudo mkdir -p ./build/rootfs
           sudo debootstrap \
             --variant=minbase \
             --include=linux-image-amd64,busybox-static,xorg,chromium,openbox \
