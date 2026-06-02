@@ -32,7 +32,7 @@ jobs:
           sudo debootstrap \
             --no-check-gpg \
             --variant=minbase \
-            --include=linux-image-amd64,busybox-static,xorg,chromium,openbox \
+            --include=linux-image-amd64,busybox-static,links2,python3 \
             bookworm \
             ./build/rootfs \
             http://deb.debian.org/debian/ || true
@@ -41,53 +41,24 @@ jobs:
       - name: Install WAW OS init
         run: |
           sudo chmod -R 777 build/
-          
-          sudo tee build/rootfs/etc/rc.local > /dev/null << 'EOF'
+
+          sudo tee build/rootfs/init > /dev/null << 'EOF'
           #!/bin/sh
           mount -t proc none /proc 2>/dev/null
           mount -t sysfs none /sys 2>/dev/null
           mount -t devtmpfs none /dev 2>/dev/null
-          mkdir -p /dev/pts
-          mount -t devpts none /dev/pts 2>/dev/null
           echo 0 > /proc/sys/kernel/printk 2>/dev/null
 
-          mkdir -p /media/cdrom /tmp/www /tmp/.X11-unix
-          chmod 1777 /tmp/.X11-unix
-
-          mount -o ro /dev/sr0 /media/cdrom 2>/dev/null || \
-          mount -o ro /dev/cdrom /media/cdrom 2>/dev/null || true
+          mkdir -p /media/cdrom /tmp/www
+          mount -o ro /dev/sr0 /media/cdrom 2>/dev/null || true
           [ -f /media/cdrom/wawos/index.html ] && \
             cp /media/cdrom/wawos/index.html /tmp/www/index.html
 
-          export HOME=/root
-          export DISPLAY=:0
-          export XAUTHORITY=/tmp/.Xauthority
-
-          # Start X with a basic config
-          Xorg :0 -nolisten tcp vt1 -config /dev/null &
-          sleep 5
-
-          # Set a black background
-          xsetroot -solid black 2>/dev/null || true
-
-          # Launch chromium in kiosk mode
-          chromium \
-            --kiosk \
-            --no-sandbox \
-            --disable-infobars \
-            --no-first-run \
-            --disable-translate \
-            --disable-features=TranslateUI \
-            --disable-gpu \
-            --app=file:///tmp/www/index.html &
-
-          wait
-          EOF
-          sudo chmod +x build/rootfs/etc/rc.local
-
-          sudo tee build/rootfs/init > /dev/null << 'EOF'
-          #!/bin/sh
-          exec /bin/sh /etc/rc.local
+          # Serve HTML via python and open in framebuffer browser
+          cd /tmp/www
+          python3 -m http.server 8080 &
+          sleep 2
+          links2 -g http://localhost:8080/index.html
           EOF
           sudo chmod +x build/rootfs/init
 
