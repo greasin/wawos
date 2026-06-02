@@ -47,18 +47,30 @@ jobs:
           mount -t proc none /proc 2>/dev/null
           mount -t sysfs none /sys 2>/dev/null
           mount -t devtmpfs none /dev 2>/dev/null
-          echo 0 > /proc/sys/kernel/printk 2>/dev/null
 
-          mkdir -p /media/cdrom /tmp/www
-          mount -o ro /dev/sr0 /media/cdrom 2>/dev/null || true
-          [ -f /media/cdrom/wawos/index.html ] && \
-            cp /media/cdrom/wawos/index.html /tmp/www/index.html
+          clear
+          echo ""
+          echo "  ██╗    ██╗ █████╗ ██╗    ██╗     ██████╗ ███████╗"
+          echo "  ██║    ██║██╔══██╗██║    ██║    ██╔═══██╗██╔════╝"
+          echo "  ██║ █╗ ██║███████║██║ █╗ ██║    ██║   ██║███████╗"
+          echo "  ╚███╔███╔╝██║  ██║╚███╔███╔╝    ╚██████╔╝███████║"
+          echo ""
+          echo "  WORLD AT WAR OS - Powered by Brainfuck(tm)"
+          echo "  No survivors."
+          echo ""
 
-          # Serve HTML via python and open in framebuffer browser
-          cd /tmp/www
-          python3 -m http.server 8080 &
-          sleep 2
-          links2 -g http://localhost:8080/index.html
+          KIA=0
+          while true; do
+            echo -n "  WAW> "
+            read CMD
+            KIA=$((KIA+1))
+            echo ""
+            echo "  *** TOTAL ANNIHILATION ***"
+            echo "  STOP CODE: 0xNO_SURVIVORS   KIA: $KIA"
+            echo "  '$CMD' caused a fatal Brainfuck exception."
+            echo "  All troops lost. Tape head derailed."
+            echo ""
+          done
           EOF
           sudo chmod +x build/rootfs/init
 
