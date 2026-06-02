@@ -1,0 +1,96 @@
+name: Build WAW OS ISO
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            xorriso \
+            grub-pc-bin \
+            grub-efi-amd64-bin \
+            grub-common \
+            mtools \
+            debootstrap \
+            squashfs-tools
+
+      - name: Build minimal Debian rootfs
+        run: |
+          sudo debootstrap \
+            --variant=minbase \
+            --include=linux-image-amd64,busybox-static,xorg,chromium,openbox \
+            bookworm \
+            ./build/rootfs \
+            http://deb.debian.org/debian/
+
+      - name: Install WAW OS init
+        run: |
+          sudo cp scripts/init build/rootfs/init
+          sudo chmod +x build/rootfs/init
+
+          sudo tee build/rootfs/etc/rc.local > /dev/null << 'EOF'
+          #!/bin/sh
+          mount -t proc none /proc 2>/dev/null
+          mount -t sysfs none /sys 2>/dev/null
+          mount -t devtmpfs none /dev 2>/dev/null
+          echo 0 > /proc/sys/kernel/printk 2>/dev/null
+          mkdir -p /media/cdrom /tmp/www
+          mount -o ro /dev/sr0 /media/cdrom 2>/dev/null || \
+          mount -o ro /dev/cdrom /media/cdrom 2>/dev/null || true
+          [ -f /media/cdrom/wawos/index.html ] && \
+            cp /media/cdrom/wawos/index.html /tmp/www/index.html
+          export HOME=/root DISPLAY=:0
+          Xorg :0 -nolisten tcp -nocursor vt1 &
+          sleep 4
+          chromium --kiosk --no-sandbox --disable-infobars \
+            --no-first-run --disable-translate \
+            --disable-features=TranslateUI \
+            --app=file:///tmp/www/index.html
+          EOF
+          sudo chmod +x build/rootfs/etc/rc.local
+
+      - name: Pack initramfs
+        run: |
+          mkdir -p build/iso/boot/grub build/iso/wawos
+          cd build/rootfs
+          sudo find . | sudo cpio -H newc -o 2>/dev/null | gzip -9 > ../iso/boot/initrd.img
+          echo "initrd size: $(du -sh ../iso/boot/initrd.img | cut -f1)"
+
+      - name: Copy kernel
+        run: |
+          VMLINUZ=$(sudo find build/rootfs/boot -name "vmlinuz-*" | head -1)
+          echo "Found kernel: $VMLINUZ"
+          sudo cp "$VMLINUZ" build/iso/boot/vmlinuz
+          echo "kernel size: $(du -sh build/iso/boot/vmlinuz | cut -f1)"
+
+      - name: Copy WAW OS assets
+        run: |
+          cp iso_root/wawos/index.html build/iso/wawos/
+          cp iso_root/boot/grub/grub.cfg build/iso/boot/grub/
+
+      - name: Build bootable ISO
+        run: |
+          sudo grub-mkrescue \
+            -o wawos.iso \
+            build/iso \
+            -- -volid WAWOS 2>&1
+          echo "ISO size: $(du -sh wawos.iso | cut -f1)"
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wawos-iso
+          path: wawos.iso
+          retention-days: 30
