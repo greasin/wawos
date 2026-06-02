@@ -30,8 +30,10 @@ jobs:
         run: |
           sudo mkdir -p ./build/rootfs
           sudo debootstrap \
+            --no-check-gpg \
             --variant=minbase \
             --include=linux-image-amd64,busybox-static,xorg,chromium,openbox \
+            --exclude=dconf-service,dconf-gsettings-backend \
             bookworm \
             ./build/rootfs \
             http://deb.debian.org/debian/
